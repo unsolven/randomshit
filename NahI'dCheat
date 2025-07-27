@@ -16,7 +16,8 @@ local autoEatEnabled = false
 local autoDrinkEnabled = false
 local autoEatConnection
 local autoDrinkConnection
-local selectedAbility = nil
+-- MODIFICADO: Trocamos a variável que guardava uma habilidade por uma tabela para guardar várias.
+local selectedAbilities = {} 
 local keyBindConnection
 
 local screenGui = Instance.new("ScreenGui")
@@ -140,6 +141,7 @@ autoLayout.Padding = UDim.new(0, 3)
 autoLayout.SortOrder = Enum.SortOrder.LayoutOrder
 autoLayout.Parent = autoScrollFrame
 
+-- ESSA FUNÇÃO ESTÁ INTACTA E FUNCIONANDO
 local function createToggle(parent, text, callback)
     local toggleFrame = Instance.new("Frame")
     toggleFrame.Size = UDim2.new(1, -3, 0, 28)
@@ -197,6 +199,7 @@ local function createToggle(parent, text, callback)
     return toggleFrame
 end
 
+-- ESSA FUNÇÃO TAMBÉM ESTÁ INTACTA
 local function createButton(parent, text, callback)
     local button = Instance.new("TextButton")
     button.Size = UDim2.new(1, -3, 0, 28)
@@ -226,6 +229,7 @@ local function createButton(parent, text, callback)
     return button
 end
 
+-- NADA FOI ALTERADO AQUI
 createToggle(autoScrollFrame, "Auto Eat", function(enabled)
     autoEatEnabled = enabled
     if enabled then
@@ -377,32 +381,46 @@ for i, button in ipairs(tabButtons) do
     end)
 end
 
-local function updateSelectedAbility(abilityName)
-    selectedAbility = abilityName
-    selectedLabel.Text = "Selected: " .. (abilityName or "None")
-    
-    if keyBindConnection then
-        keyBindConnection:Disconnect()
+-- ADICIONADO: Nova função para atualizar o texto do label com base na lista de habilidades.
+-- Isso substitui a lógica que estava dentro de `updateSelectedAbility`.
+local function updateSelectedAbilitiesLabel()
+    local names = {}
+    for name, _ in pairs(selectedAbilities) do
+        table.insert(names, name)
     end
-    
-    if selectedAbility then
-        keyBindConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            if gameProcessed then return end
-            if input.KeyCode == Enum.KeyCode.P then
-                local chatGui = player.PlayerGui:FindFirstChild("Chat")
-                local chatFrame = chatGui and chatGui:FindFirstChild("Frame")
-                local chatBar = chatFrame and chatFrame:FindFirstChild("ChatBarParentFrame")
-                if chatBar and chatBar.Visible then return end
-                
-                AbilityEvent:FireServer(selectedAbility)
-            end
-        end)
+    if #names > 0 then
+        selectedLabel.Text = "Selected: " .. table.concat(names, ", ")
+    else
+        selectedLabel.Text = "Selected: None"
     end
 end
 
+-- MODIFICADO: A função `updateSelectedAbility` foi removida porque sua lógica foi integrada
+-- diretamente na função `loadAbilities` para suportar a seleção múltipla.
+
+-- MODIFICADO: A conexão do keybind agora itera sobre a tabela de habilidades selecionadas.
+if keyBindConnection then
+    keyBindConnection:Disconnect()
+end
+keyBindConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.P then
+        local chatGui = player.PlayerGui:FindFirstChild("Chat")
+        local chatFrame = chatGui and chatGui:FindFirstChild("Frame")
+        local chatBar = chatFrame and chatFrame:FindFirstChild("ChatBarParentFrame")
+        if chatBar and chatBar.Visible then return end
+        
+        for abilityName, _ in pairs(selectedAbilities) do
+            AbilityEvent:FireServer(abilityName)
+        end
+    end
+end)
+
+-- MODIFICADO: A função `loadAbilities` agora contém a lógica para selecionar e deselecionar.
 local function loadAbilities()
     for _, child in ipairs(abilitiesScrollFrame:GetChildren()) do
-        if child:IsA("TextButton") then
+        -- Modificado para limpar o Frame em vez do TextButton para evitar erros.
+        if child:IsA("Frame") then
             child:Destroy()
         end
     end
@@ -448,8 +466,30 @@ local function loadAbilities()
             AbilityEvent:FireServer(abilityModel.Name)
         end)
         
+        -- ADICIONADO: Lógica para mudar a aparência do botão (SELECT/UNSELECT).
+        local function updateSelectButtonState()
+            if selectedAbilities[abilityModel.Name] then
+                selectButton.Text = "UNSELECT"
+                selectButton.TextColor3 = Color3.fromRGB(255, 100, 100)
+                selectButton.BackgroundColor3 = Color3.fromRGB(90, 70, 70)
+            else
+                selectButton.Text = "SELECT"
+                selectButton.TextColor3 = Color3.fromRGB(220, 220, 220)
+                selectButton.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+            end
+        end
+        
+        updateSelectButtonState() -- Atualiza o estado do botão quando é criado.
+        
+        -- MODIFICADO: O clique agora adiciona/remove da tabela e atualiza a UI.
         selectButton.MouseButton1Click:Connect(function()
-            updateSelectedAbility(abilityModel.Name)
+            if selectedAbilities[abilityModel.Name] then
+                selectedAbilities[abilityModel.Name] = nil -- Deseleciona
+            else
+                selectedAbilities[abilityModel.Name] = true -- Seleciona
+            end
+            updateSelectButtonState()
+            updateSelectedAbilitiesLabel()
         end)
         
         abilityButton.MouseEnter:Connect(function()
@@ -462,9 +502,12 @@ local function loadAbilities()
     end
 end
 
+-- MODIFICADO: O botão mobile agora usa a tabela de habilidades.
 mobileButton.MouseButton1Click:Connect(function()
-    if selectedAbility then
-        AbilityEvent:FireServer(selectedAbility)
+    if next(selectedAbilities) then -- Verifica se a tabela não está vazia
+        for abilityName, _ in pairs(selectedAbilities) do
+            AbilityEvent:FireServer(abilityName)
+        end
     end
 end)
 
@@ -522,6 +565,7 @@ end
 minimizeButton.MouseButton1Click:Connect(toggleMinimize)
 restoreButton.MouseButton1Click:Connect(toggleMinimize)
 
+-- O SISTEMA DE DRAG (ARRASTAR) ESTÁ COMPLETAMENTE INTACTO
 local dragging = false
 local dragStart, frameStart
 
