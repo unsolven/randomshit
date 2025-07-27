@@ -1,0 +1,258 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local AbilityEvent = ReplicatedStorage:WaitForChild("Events"):WaitForChild("Ability")
+local AbilityModels = ReplicatedStorage:WaitForChild("AbilityModels")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AbilityUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 180, 0, 220)
+mainFrame.Position = UDim2.new(0, 10, 0, 10)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+mainFrame.BackgroundTransparency = 0.1
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 8)
+UICorner.Parent = mainFrame
+
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 24)
+titleBar.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(0.75, 0, 1, 0)
+title.Position = UDim2.new(0.1, 0, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "ABILITIES"
+title.TextColor3 = Color3.fromRGB(220, 220, 220)
+title.Font = Enum.Font.GothamSemibold
+title.TextSize = 11
+title.Parent = titleBar
+
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 24, 0, 24)
+minimizeButton.Position = UDim2.new(1, -24, 0, 0)
+minimizeButton.AnchorPoint = Vector2.new(1, 0)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(45, 45, 55)
+minimizeButton.BorderSizePixel = 0
+minimizeButton.Text = "▼"
+minimizeButton.TextColor3 = Color3.fromRGB(220, 220, 220)
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.TextSize = 10
+minimizeButton.Parent = titleBar
+
+local minimizeCorner = Instance.new("UICorner")
+minimizeCorner.CornerRadius = UDim.new(0, 4)
+minimizeCorner.Parent = minimizeButton
+
+local abilitiesScrollingFrame = Instance.new("ScrollingFrame")
+abilitiesScrollingFrame.Size = UDim2.new(1, -6, 1, -30)
+abilitiesScrollingFrame.Position = UDim2.new(0, 3, 0, 27)
+abilitiesScrollingFrame.BackgroundTransparency = 1
+abilitiesScrollingFrame.BorderSizePixel = 0
+abilitiesScrollingFrame.ScrollBarThickness = 2
+abilitiesScrollingFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 120)
+abilitiesScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+abilitiesScrollingFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+abilitiesScrollingFrame.ScrollingDirection = Enum.ScrollingDirection.Y
+abilitiesScrollingFrame.Parent = mainFrame
+
+local uiListLayout = Instance.new("UIListLayout")
+uiListLayout.Padding = UDim.new(0, 3)
+uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+uiListLayout.Parent = abilitiesScrollingFrame
+
+local minimizedFrame = Instance.new("Frame")
+minimizedFrame.Size = UDim2.new(0, 120, 0, 24)
+minimizedFrame.Position = UDim2.new(0, 10, 1, -34)
+minimizedFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+minimizedFrame.BackgroundTransparency = 0.1
+minimizedFrame.BorderSizePixel = 0
+minimizedFrame.Visible = false
+minimizedFrame.Parent = screenGui
+
+local UICorner2 = Instance.new("UICorner")
+UICorner2.CornerRadius = UDim.new(0, 8)
+UICorner2.Parent = minimizedFrame
+
+local restoreButton = Instance.new("TextButton")
+restoreButton.Size = UDim2.new(1, 0, 1, 0)
+restoreButton.BackgroundTransparency = 1
+restoreButton.Text = "▲ ABILITIES"
+restoreButton.TextColor3 = Color3.fromRGB(220, 220, 220)
+restoreButton.Font = Enum.Font.GothamSemibold
+restoreButton.TextSize = 10
+restoreButton.Parent = minimizedFrame
+
+local isMinimized = false
+
+local function autoResize()
+    local screenSize = workspace.CurrentCamera.ViewportSize
+    local scale = math.min(1, screenSize.X / 800, screenSize.Y / 600)
+    
+    if screenSize.X < 600 then
+        mainFrame.Size = UDim2.new(0, 160, 0, 200)
+        title.TextSize = 10
+        minimizeButton.TextSize = 9
+    else
+        mainFrame.Size = UDim2.new(0, 180, 0, 220)
+        title.TextSize = 11
+        minimizeButton.TextSize = 10
+    end
+end
+
+local function loadAbilities()
+    for _, child in ipairs(abilitiesScrollingFrame:GetChildren()) do
+        if child:IsA("TextButton") then
+            child:Destroy()
+        end
+    end
+    
+    for _, abilityModel in ipairs(AbilityModels:GetChildren()) do
+        local abilityButton = Instance.new("TextButton")
+        abilityButton.Name = abilityModel.Name
+        abilityButton.Size = UDim2.new(1, 0, 0, 28)
+        abilityButton.BackgroundColor3 = Color3.fromRGB(50, 50, 60)
+        abilityButton.BackgroundTransparency = 0.5
+        abilityButton.BorderSizePixel = 0
+        abilityButton.Text = abilityModel.Name:upper()
+        abilityButton.TextColor3 = Color3.fromRGB(240, 240, 240)
+        abilityButton.Font = Enum.Font.GothamMedium
+        abilityButton.TextSize = 10
+        
+        local buttonCorner = Instance.new("UICorner")
+        buttonCorner.CornerRadius = UDim.new(0, 4)
+        buttonCorner.Parent = abilityButton
+        
+        abilityButton.MouseEnter:Connect(function()
+            abilityButton.BackgroundTransparency = 0.3
+        end)
+        
+        abilityButton.MouseLeave:Connect(function()
+            abilityButton.BackgroundTransparency = 0.5
+        end)
+        
+        abilityButton.MouseButton1Click:Connect(function()
+            AbilityEvent:FireServer(abilityModel.Name)
+        end)
+        
+        abilityButton.Parent = abilitiesScrollingFrame
+    end
+end
+
+local function toggleMinimize()
+    isMinimized = not isMinimized
+    mainFrame.Visible = not isMinimized
+    minimizedFrame.Visible = isMinimized
+    minimizeButton.Text = isMinimized and "▲" or "▼"
+end
+
+minimizeButton.MouseButton1Click:Connect(toggleMinimize)
+restoreButton.MouseButton1Click:Connect(toggleMinimize)
+
+local dragging = false
+local dragStart, frameStart
+
+local function clampPosition(frame)
+    local screenSize = workspace.CurrentCamera.ViewportSize
+    local frameSize = frame.AbsoluteSize
+    local currentPos = frame.Position
+    local newX = math.max(0, math.min(currentPos.X.Offset, screenSize.X - frameSize.X))
+    local newY = math.max(0, math.min(currentPos.Y.Offset, screenSize.Y - frameSize.Y))
+    frame.Position = UDim2.new(0, newX, 0, newY)
+end
+
+local function updateDrag(input)
+    if not dragging then return end
+    local delta = input.Position - dragStart
+    local newPosition = UDim2.new(0, frameStart.X.Offset + delta.X, 0, frameStart.Y.Offset + delta.Y)
+    
+    if isMinimized then
+        minimizedFrame.Position = newPosition
+        clampPosition(minimizedFrame)
+    else
+        mainFrame.Position = newPosition
+        clampPosition(mainFrame)
+    end
+end
+
+local function startDrag(input, frame)
+    dragging = true
+    dragStart = input.Position
+    frameStart = frame.Position
+    
+    local connection
+    connection = input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+            if connection then connection:Disconnect() end
+        end
+    end)
+end
+
+mainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        startDrag(input, mainFrame)
+    end
+end)
+
+mainFrame.InputChanged:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then
+        updateDrag(input)
+    end
+end)
+
+minimizedFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        startDrag(input, minimizedFrame)
+    end
+end)
+
+minimizedFrame.InputChanged:Connect(function(input)
+    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) and dragging then
+        updateDrag(input)
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateDrag(input)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+    autoResize()
+    clampPosition(mainFrame)
+    clampPosition(minimizedFrame)
+end)
+
+spawn(function()
+    wait(0.1)
+    autoResize()
+    clampPosition(mainFrame)
+end)
+
+loadAbilities()
+AbilityModels.ChildAdded:Connect(loadAbilities)
+AbilityModels.ChildRemoved:Connect(loadAbilities)
